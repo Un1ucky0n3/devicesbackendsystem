@@ -1,32 +1,59 @@
 # Device Groups API
 
-A REST API built with **NestJS** and **TypeScript** for managing devices, groups, and files stored on devices.
+A REST API built with **NestJS** and **TypeScript** for managing devices, groups, and the files stored on devices. It is a mock of a device/group management service exposed over HTTP, using **node-json-db** as a lightweight JSON file database.
 
-The application uses **node-json-db** as a lightweight JSON file database.
+This project was created as a recruitment task. The section below describes how each requirement from the assignment has been fulfilled.
 
-## Features
+## Assignment Requirements & How They Are Met
 
-* Get all groups
-* Get a group by ID
-* Get a group by name
-* Add a device to a group using its ID or name
-* Remove a device from a group using its ID or name
-* Automatically create a group when adding a device to a non-existing group
-* Prevent duplicate group names
-* Automatically remove empty groups
-* Get a unique list of files from devices belonging to selected groups
+### Technology
+
+| Requirement | Status | Implementation |
+| --- | --- | --- |
+| Node.js with any npm packages | Done | Node.js + NestJS, `class-validator`, `class-transformer` |
+| TypeScript with `strict` enabled | Done | Whole codebase is written in TypeScript with strict mode (see `tsconfig.json`) |
+| Mock database: `node-json-db` | Done | Wrapped in a dedicated `DatabaseModule` / `DatabaseService`, data stored in `data/db.json` |
+
+### Behaviour
+
+| Requirement | Status | Implementation |
+| --- | --- | --- |
+| Database initially contains 3 devices | Done | `data/db.json` is seeded with the 3 devices from the assignment and an empty `groups` list |
+| Add a device to a group by **name or ID** and return the group object | Done | `POST /groups/device/:deviceId?groupId=` or `?groupName=` |
+| Create the group if it does not exist; group names must be unique | Done | Missing groups are created automatically; duplicate names are rejected with `409 Conflict` |
+| Remove a device from a group by **name or ID** and return the group object | Done | `DELETE /groups/device/:deviceId?groupId=` or `?groupName=` |
+| Delete the group when it has no more devices | Done | Empty groups are removed automatically after a device is removed |
+| Get the list of files from devices belonging to given groups, without duplicates | Done | `GET /groups/files?groupIds=1,2,3` returns a unique list of files |
+| Endpoints exchange `application/json` and operate on the database | Done | All endpoints read from / write to the JSON database and respond with JSON |
+
+### Models
+
+```ts
+Device { id: number; files: string[] }
+Group  { id: number; name: string; devices: number[] } // devices = list of device IDs
+```
+
+### Beyond the Requirements
+
+In addition to the three required operations, the API also provides read endpoints for convenience:
+
+- `GET /groups` – list all groups
+- `GET /groups/:id` – get a group by ID
+- `GET /groups/by-name/:name` – get a group by name
+
+Other extras: request validation, standard HTTP error responses (400 / 404 / 409) Linting and formatting are handled by **oxlint** and **Prettier**.
 
 ## Tech Stack
 
-* **Node.js**
-* **NestJS**
-* **TypeScript**
-* **node-json-db**
-* **class-validator / class-transformer**
+- **Node.js**
+- **NestJS**
+- **TypeScript** (strict mode)
+- **node-json-db**
+- **class-validator / class-transformer**
 
 ## Project Structure
 
-```text
+```
 .
 ├── data/
 │   └── db.json
@@ -45,6 +72,7 @@ The application uses **node-json-db** as a lightweight JSON file database.
 │   │   ├── groups.service.ts
 │   │   └── group.model.ts
 │   └── app.module.ts
+├── test/
 ├── .gitignore
 ├── nest-cli.json
 ├── package.json
@@ -52,15 +80,13 @@ The application uses **node-json-db** as a lightweight JSON file database.
 └── tsconfig.json
 ```
 
-## Installation
+## Getting Started
 
-Clone the repository and install the dependencies:
+### Installation
 
 ```bash
 npm install
 ```
-
-## Running the Application
 
 ### Development
 
@@ -68,183 +94,130 @@ npm install
 npm run start:dev
 ```
 
-The API will be available at:
-
-```text
-http://localhost:3000
-```
+The API will be available at `http://localhost:3000`.
 
 ### Production
 
-Build the application:
-
 ```bash
 npm run build
+npm run start:prod
 ```
 
-Then start it:
+### Tests
 
 ```bash
+npm run test
+```
+
+### Available Scripts
+
+```bash
+npm run start
+npm run start:dev
+npm run start:debug
+npm run build
 npm run start:prod
+npm run test
 ```
 
 ## Database
 
-The application uses `node-json-db` to store data in a local JSON file.
+Data is stored in a local JSON file via `node-json-db`:
 
-The database is located at:
-
-```text
+```
 data/db.json
 ```
 
-Example:
+Initial (seed) contents:
 
 ```json
 {
   "devices": [
-    {
-      "id": 1,
-      "files": [
-        "notavirus.exe",
-        "deathstarblueprint.pdf"
-      ]
-    },
-    {
-      "id": 2,
-      "files": [
-        "deathstarblueprint.pdf",
-        "peterdinklagenudes.zip"
-      ]
-    }
+    { "id": 1, "files": ["notavirus.exe", "deathstarblueprint.pdf"] },
+    { "id": 2, "files": ["deathstarblueprint.pdf", "peterdinklagenudes.zip"] },
+    { "id": 3, "files": ["peterdinklagenudes.zip", "keyboardcat.mp4"] }
   ],
   "groups": []
 }
 ```
 
-The database file is intended to be local application data and should not be committed to the repository.
-
-## API Endpoints
+## API Reference
 
 ### Groups
 
 #### Get all groups
 
-```http
-GET /groups
 ```
-
-Example:
-
-```text
-GET http://localhost:3000/groups
+GET /groups
 ```
 
 #### Get group by ID
 
-```http
+```
 GET /groups/:id
 ```
 
-Example:
-
-```text
-GET http://localhost:3000/groups/1
-```
+Example: `GET http://localhost:3000/groups/1`
 
 #### Get group by name
 
-```http
+```
 GET /groups/by-name/:name
 ```
 
-Example:
+Example: `GET http://localhost:3000/groups/by-name/group1`
 
-```text
-GET http://localhost:3000/groups/by-name/group1
+### Add a Device to a Group
+
+A device can be added using either the group's ID or its name. The updated group object is returned.
+
 ```
-
-### Add Device to Group
-
-A device can be added to a group using either the group's ID or name.
-
-#### Using group ID
-
-```http
 POST /groups/device/:deviceId?groupId=:groupId
-```
-
-Example:
-
-```text
-POST http://localhost:3000/groups/device/1?groupId=2
-```
-
-#### Using group name
-
-```http
 POST /groups/device/:deviceId?groupName=:groupName
 ```
 
-Example:
+Examples:
 
-```text
+```
+POST http://localhost:3000/groups/device/1?groupId=2
 POST http://localhost:3000/groups/device/1?groupName=group2
 ```
 
-If the specified group does not exist, a new group is created automatically.
+- If the group does not exist, it is created automatically.
+- If no group name is provided for a new group, the generated name follows the format `group-{id}`.
+- A device cannot be added to the same group more than once.
 
-If no group name is provided, the generated name follows the format:
+### Remove a Device from a Group
 
-```text
-group-{id}
+A device can be removed using either the group's ID or its name.
+
 ```
-
-A device cannot be added to the same group more than once.
-
-### Remove Device from Group
-
-A device can also be removed using either the group's ID or name.
-
-#### Using group ID
-
-```http
 DELETE /groups/device/:deviceId?groupId=:groupId
+DELETE /groups/device/:deviceId?groupName=:groupName
 ```
 
-Example:
+Examples:
 
-```text
+```
 DELETE http://localhost:3000/groups/device/1?groupId=2
-```
-
-#### Using group name
-
-```text
-DELETE http://localhost:3000/groups/device/:deviceId?groupName=:groupName
-```
-
-Example:
-
-```text
 DELETE http://localhost:3000/groups/device/1?groupName=group2
 ```
 
-If removing a device leaves the group empty, the group is automatically deleted.
+If removing the device leaves the group empty, the group is automatically deleted.
 
 ### Get Files from Groups
 
 Returns a unique list of files belonging to devices assigned to the specified groups.
 
-```http
+```
 GET /groups/files?groupIds=:groupIds
 ```
 
-Multiple group IDs can be provided as a comma-separated list.
+Multiple group IDs can be passed as a comma-separated list.
 
 Example:
 
-```text
+```
 GET http://localhost:3000/groups/files?groupIds=1,2,3
 ```
 
@@ -259,39 +232,23 @@ Example response:
 ]
 ```
 
-Duplicate files are removed from the result.
-
 ## Group Rules
-
-The following rules are applied when managing groups:
 
 1. Group names must be unique.
 2. A device cannot appear more than once in the same group.
-3. A group is automatically created when adding a device to a non-existing group.
+3. A group is automatically created when a device is added to a non-existing group.
 4. Empty groups are automatically removed.
 5. New group IDs are generated based on the highest existing group ID.
 
-For example, if the existing group IDs are:
-
-```text
-1, 2, 7
-```
-
-the next group will receive:
-
-```text
-8
-```
+For example, if the existing group IDs are `1, 2, 7`, the next group receives ID `8`.
 
 ## Error Handling
 
-The API uses standard NestJS HTTP exceptions.
+The API uses standard NestJS HTTP exceptions:
 
-Examples:
-
-* `400 Bad Request` — invalid request parameters
-* `404 Not Found` — requested device or group does not exist
-* `409 Conflict` — attempting to create a group with an existing name
+- `400 Bad Request` – invalid request parameters
+- `404 Not Found` – requested device or group does not exist
+- `409 Conflict` – attempting to create a group with an existing name
 
 Example:
 
@@ -303,19 +260,6 @@ Example:
 }
 ```
 
-## Scripts
-
-Common npm scripts:
-
-```bash
-npm run start
-npm run start:dev
-npm run start:debug
-npm run build
-npm run start:prod
-npm run test
-```
-
 ## License
 
-This project is for educational/development purposes.
+This project was created for educational and recruitment purposes.
